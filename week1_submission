@@ -1,0 +1,481 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 29,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "dn-6c02VmqiN"
+   },
+   "outputs": [],
+   "source": [
+    "# ATTENTION: Please do not alter any of the provided code in the exercise. Only add your own code where indicated\n",
+    "# ATTENTION: Please do not add or remove any cells in the exercise. The grader will check specific cells based on the cell position.\n",
+    "# ATTENTION: Please use the provided epoch values when training.\n",
+    "\n",
+    "# In this exercise you will train a CNN on the FULL Cats-v-dogs dataset\n",
+    "# This will require you doing a lot of data preprocessing because\n",
+    "# the dataset isn't split into training and validation for you\n",
+    "# This code block has all the required inputs\n",
+    "import os\n",
+    "import zipfile\n",
+    "import random\n",
+    "import tensorflow as tf\n",
+    "import shutil\n",
+    "from tensorflow.keras.optimizers import RMSprop\n",
+    "from tensorflow.keras.preprocessing.image import ImageDataGenerator\n",
+    "from shutil import copyfile\n",
+    "from os import getcwd"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "3sd9dQWa23aj"
+   },
+   "outputs": [],
+   "source": [
+    "path_cats_and_dogs = f\"{getcwd()}/../tmp2/cats-and-dogs.zip\"\n",
+    "shutil.rmtree('/tmp')\n",
+    "\n",
+    "local_zip = path_cats_and_dogs\n",
+    "zip_ref = zipfile.ZipFile(local_zip, 'r')\n",
+    "zip_ref.extractall('/tmp')\n",
+    "zip_ref.close()\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 31,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "gi3yD62a6X3S"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "1500\n",
+      "1500\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(len(os.listdir('/tmp/PetImages/Cat/')))\n",
+    "print(len(os.listdir('/tmp/PetImages/Dog/')))\n",
+    "\n",
+    "# Expected Output:\n",
+    "# 1500\n",
+    "# 1500"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "F-QkLjxpmyK2"
+   },
+   "outputs": [],
+   "source": [
+    "# Use os.mkdir to create your directories\n",
+    "# You will need a directory for cats-v-dogs, and subdirectories for training\n",
+    "# and testing. These in turn will need subdirectories for 'cats' and 'dogs'\n",
+    "try:\n",
+    "    #YOUR CODE GOES HERE\n",
+    "    os.mkdir('/tmp/cats-v-dogs')\n",
+    "    os.mkdir('/tmp/cats-v-dogs/training')\n",
+    "    os.mkdir('/tmp/cats-v-dogs/testing')\n",
+    "    os.mkdir('/tmp/cats-v-dogs/training/cats')\n",
+    "    os.mkdir('/tmp/cats-v-dogs/training/dogs')\n",
+    "    os.mkdir('/tmp/cats-v-dogs/testing/cats')\n",
+    "    os.mkdir('/tmp/cats-v-dogs/testing/dogs')\n",
+    "    \n",
+    "except OSError:\n",
+    "    pass"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "zvSODo0f9LaU"
+   },
+   "outputs": [],
+   "source": [
+    "# Write a python function called split_data which takes\n",
+    "# a SOURCE directory containing the files\n",
+    "# a TRAINING directory that a portion of the files will be copied to\n",
+    "# a TESTING directory that a portion of the files will be copie to\n",
+    "# a SPLIT SIZE to determine the portion\n",
+    "# The files should also be randomized, so that the training set is a random\n",
+    "# X% of the files, and the test set is the remaining files\n",
+    "# SO, for example, if SOURCE is PetImages/Cat, and SPLIT SIZE is .9\n",
+    "# Then 90% of the images in PetImages/Cat will be copied to the TRAINING dir\n",
+    "# and 10% of the images will be copied to the TESTING dir\n",
+    "# Also -- All images should be checked, and if they have a zero file length,\n",
+    "# they will not be copied over\n",
+    "#\n",
+    "# os.listdir(DIRECTORY) gives you a listing of the contents of that directory\n",
+    "# os.path.getsize(PATH) gives you the size of the file\n",
+    "# copyfile(source, destination) copies a file from source to destination\n",
+    "# random.sample(list, len(list)) shuffles a list\n",
+    "def split_data(SOURCE, TRAINING, TESTING, SPLIT_SIZE):\n",
+    "# YOUR CODE STARTS HERE\n",
+    "    dataset = [] \n",
+    "    \n",
+    "    # check the files \n",
+    "    for unit_data in os.listdir(SOURCE):\n",
+    "        data = SOURCE + unit_data\n",
+    "        if(os.path.getsize(data)>0):\n",
+    "            dataset.append(unit_data)\n",
+    "        else:\n",
+    "            print(\"INVALID\")\n",
+    "    \n",
+    "    train_data_length = int(len(dataset)*SPLIT_SIZE)\n",
+    "    \n",
+    "    shuffled_set = random.sample(dataset, len(dataset))\n",
+    "    \n",
+    "    train_set = shuffled_set[0:train_data_length]\n",
+    "    test_set  = shuffled_set[train_data_length:]\n",
+    "    \n",
+    "    for unit_data in train_set:\n",
+    "        temp_train_data = SOURCE + unit_data \n",
+    "        final_train_data = TRAINING + unit_data \n",
+    "        copyfile(temp_train_data, final_train_data)\n",
+    "    \n",
+    "    for unit_data in test_set:\n",
+    "        temp_test_data = SOURCE + unit_data\n",
+    "        final_test_data = TESTING + unit_data\n",
+    "        copyfile(temp_test_data, final_test_data)\n",
+    "    \n",
+    "# YOUR CODE ENDS HERE\n",
+    "CAT_SOURCE_DIR = \"/tmp/PetImages/Cat/\"\n",
+    "TRAINING_CATS_DIR = \"/tmp/cats-v-dogs/training/cats/\"\n",
+    "TESTING_CATS_DIR = \"/tmp/cats-v-dogs/testing/cats/\"\n",
+    "DOG_SOURCE_DIR = \"/tmp/PetImages/Dog/\"\n",
+    "TRAINING_DOGS_DIR = \"/tmp/cats-v-dogs/training/dogs/\"\n",
+    "TESTING_DOGS_DIR = \"/tmp/cats-v-dogs/testing/dogs/\"\n",
+    "\n",
+    "split_size = .9\n",
+    "split_data(CAT_SOURCE_DIR, TRAINING_CATS_DIR, TESTING_CATS_DIR, split_size)\n",
+    "split_data(DOG_SOURCE_DIR, TRAINING_DOGS_DIR, TESTING_DOGS_DIR, split_size)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "luthalB76ufC"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "1350\n",
+      "1350\n",
+      "150\n",
+      "150\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(len(os.listdir('/tmp/cats-v-dogs/training/cats/')))\n",
+    "print(len(os.listdir('/tmp/cats-v-dogs/training/dogs/')))\n",
+    "print(len(os.listdir('/tmp/cats-v-dogs/testing/cats/')))\n",
+    "print(len(os.listdir('/tmp/cats-v-dogs/testing/dogs/')))\n",
+    "\n",
+    "# Expected output:\n",
+    "# 1350\n",
+    "# 1350\n",
+    "# 150\n",
+    "# 150"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "-BQrav4anTmj"
+   },
+   "outputs": [],
+   "source": [
+    "# DEFINE A KERAS MODEL TO CLASSIFY CATS V DOGS\n",
+    "# USE AT LEAST 3 CONVOLUTION LAYERS\n",
+    "model = tf.keras.models.Sequential([\n",
+    "# YOUR CODE HERE\n",
+    "    tf.keras.layers.Conv2D(16, (3, 3), activation='relu', input_shape=(150, 150, 3)),\n",
+    "    tf.keras.layers.MaxPooling2D(2, 2),\n",
+    "    tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),\n",
+    "    tf.keras.layers.MaxPooling2D(2, 2),\n",
+    "    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),\n",
+    "    tf.keras.layers.MaxPooling2D(2, 2),\n",
+    "    tf.keras.layers.Flatten(),\n",
+    "    tf.keras.layers.Dense(512, activation='relu'),\n",
+    "    tf.keras.layers.Dense(1, activation='sigmoid')\n",
+    "])\n",
+    "\n",
+    "model.compile(optimizer=RMSprop(lr=0.001), loss='binary_crossentropy', metrics=['acc'])"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# NOTE:\n",
+    "\n",
+    "In the cell below you **MUST** use a batch size of 10 (`batch_size=10`) for the `train_generator` and the `validation_generator`. Using a batch size greater than 10 will exceed memory limits on the Coursera platform."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "mlNjoJ5D61N6"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Found 2700 images belonging to 2 classes.\n",
+      "Found 300 images belonging to 2 classes.\n"
+     ]
+    }
+   ],
+   "source": [
+    "TRAINING_DIR = '/tmp/cats-v-dogs/training'\n",
+    "train_datagen = ImageDataGenerator(rescale=1./255) \n",
+    "\n",
+    "# NOTE: YOU MUST USE A BATCH SIZE OF 10 (batch_size=10) FOR THE \n",
+    "# TRAIN GENERATOR.\n",
+    "train_generator = train_datagen.flow_from_directory(\n",
+    "    TRAINING_DIR,\n",
+    "    target_size=(150,150),  # resize the images\n",
+    "    batch_size=10,  # There are 2000 images so we will use a 100 batches of 20 each\n",
+    "    class_mode='binary'\n",
+    "    )\n",
+    "\n",
+    "\n",
+    "VALIDATION_DIR = '/tmp/cats-v-dogs/testing'\n",
+    "validation_datagen = ImageDataGenerator(rescale=1./255) \n",
+    "\n",
+    "# NOTE: YOU MUST USE A BACTH SIZE OF 10 (batch_size=10) FOR THE \n",
+    "# VALIDATION GENERATOR.\n",
+    "validation_generator = validation_datagen.flow_from_directory(\n",
+    "    VALIDATION_DIR,\n",
+    "    target_size=(150,150),\n",
+    "    batch_size=10,\n",
+    "    class_mode='binary'\n",
+    ")\n",
+    "\n",
+    "# Expected Output:\n",
+    "# Found 2700 images belonging to 2 classes.\n",
+    "# Found 300 images belonging to 2 classes."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 39,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "KyS4n53w7DxC"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Epoch 1/2\n",
+      "270/270 [==============================] - 47s 173ms/step - loss: 0.7070 - acc: 0.5622 - val_loss: 0.6305 - val_acc: 0.6767\n",
+      "Epoch 2/2\n",
+      "270/270 [==============================] - 41s 153ms/step - loss: 0.6018 - acc: 0.6826 - val_loss: 0.5380 - val_acc: 0.7367\n"
+     ]
+    }
+   ],
+   "source": [
+    "history = model.fit_generator(train_generator,\n",
+    "                              epochs=2,\n",
+    "                              verbose=1,\n",
+    "                              validation_data=validation_generator)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "metadata": {
+    "colab": {},
+    "colab_type": "code",
+    "id": "MWZrJN4-65RC"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "Text(0.5, 1.0, 'Training and validation loss')"
+      ]
+     },
+     "execution_count": 40,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "image/png": "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4bPXXjPT23KIUAuV4aglaUuGCLck5BwilBYmw1HblCq4//7Z72nNxxDhqJM1HCKU5p/hqJHN9hDheNkbNky/bjvuODx8HCKUFqD774e1a+Gmm7rHjTduWh587LADnH/+jB/ecFziXvUquP12hwglzaKNG+GWWyYOt2GPW28dXt7uu8PKld3jwANnpcqG4xL3T//U/dxONUS4pZ/fcohQWmSq4Lbbphd0a9cOnzW2007dX8rjYffQh25anuixzz7dUNEsMxyXuGuvne8aSJo3Vd2w0HSC7qabumssE9l++82D7MgjJw+6lSu7v6K3QYajJC0W9947/aC7556Jy9puu66XNh5ihx4KT3rS5EG3++6LZqjIcJSkbdH69XDzzdMLujvuGF7eXnttCrEDDoDHPnbyoNtzzy4glyjDUZJm28aN3QSTYTMupzshZbfdNg+yww6bOODGr+XtvXd3V2CNzLMlSdNR1U3xnk6P7uabh09I2XHHzSekjI1NPSFlp53mtMlLkeEoaWnbkgkp998/cVnLl28eZI985GgTUhbJdbrFxHCUtHjce+/0r9MN+7qkZPMJKYccAk94wuRBt2KFQbdIGI6Stk3r12/+DSmjPG6/fXh5e+65KcT23x8e/eipJ6T47RJLluEoafaNT0iZTtDdcsvw8toJKY94xORBt/fe3WfwpBEZjpKmZzYmpAzOrjzoICekaN4ZjtJSd/fdkwfbRB8/GDYhZdmyzYPsiCOmnpCy665ep9M2x3CUFpP77pv+hJS77pq4rKQbjhwPsYMPhsc/fvKg22MPg06LguEobas2bJj+hJTbbhte3h57bAqx/fab+nsv99rLCSlasgxHaS5s3Ajr1k1/QkrVxOXtuuvmQXbooVNPSNlhh7lts7SAGY7SdFV132E53Qkpw+7ivMMOm39DylTfebnPPt09xCTNGsNRmmpCykSPYXd+XrZs8w+OH364E1KkBchw1OJy//2TT0iZaOblsAkpsPmElLExWL166gkpS/hOBtJiYThq27VhQ3fdbTo9unXrhpe3YsWmENt3X3jUo6aekOKdDKQlyf/5mhtV05+Qsnbt8Akpu+yyeZAdcsjU1+mckCJpRIajpq8K7rxz+hNS1q+fuLztt998QspU33m5zz5dOErSLDEcBffcM/0JKffeO3FZ2233k995+eQnTx52u+3mhBRJ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\n",
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "image/png": "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/QIAhonBKDtk0aJFwVPlAaA5tu+NiJfcE8wTNgAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANnpGu0KoIHPflbq75fmzJEOOGDon7NnS5Mnj3ZNAaBjCK+x7kc/kpYulV54of56fX21w63WzzlzpJkzJbszxwIAbUJ4jXV33pl+7tolbdqUXs891/jnunUD87t31y6/q6u5wKsOvqlTO/MZAMAghFcuurulQw5Jr2ZEpFZb2dB76inpgQfS/ObN9cuePr350DvggNRKnMTpVgCtI7zGOzt1Dc6cKR1+eHPb7t2bzreVCb1Nm6TVqwfmt2+vX6fZs1tr8U2fTjcnAMILdUyenELjgAOa33bHjua6OR99dGB+797a5XZ3t97NOWVK658FgDGF8MLI6OmR5s1Lr2ZESFu3lg+99eul5cvT/JYt9cueObO1bs7eXro5gTGG8MLYYkuzZqXXkUc2t+2ePek8XdluzgcfHJjfubN2uZMmDbTemg2/adOG93kAGBLhhfGjq0uaOze9mrV9e/nQe+456eGH08/Nm6V9+2qX29NTvluzetns2el4AAyJvw5ASi2k+fPTqxn79qXuymbO7S1dmuaff75+2bNmtdba6+3lohaMe4QXMByTJqVW0uzZ0lFHNbftrl3NdXPef//AfL179yZPbi30DjiAe/eQDcILGC3d3dLBB6dXMyKkbdvKh97TT0urVqX5/v60fS3TprV+7x6PKEMHEV5Abmxpxoz0avXevbLdnGvWSIsXp/lt2+rXqa+vtRbfjBl0c6JphBcwkVTfu/fylze37c6d5UNv0ybpsccG5uvduzdlSuv37nV3D+/zQLYILwDlTJ0qvexl6dWMiHRxStnQe+IJacWKNN/o3r0ZM1rr5pw1i3v3Mkd4jXFf+1p6NGFfX7omoK/vpdM8OAJjmp2ugOztbf3evbItvoceSj/L3Ls3+BFlZYNv2jS6OccAwmuMu+yy9PdYz/Tp+wdarZCr9f7MmXwJxRg13Hv3munmXLNm4JFm9e7d6+5urbU3Zw737rURn+QYt3Jl6jnp709fQKt/1pp+9tn0d1hZVu8LqDRwrr2ZwBu8rKeHL6MYY6ZNS69DD21uu3370iPKyobe449Ly5al6a1b65fd29ta6M2axR/YIITXGFe5ZWfOnNbL2LFjIOBqBd7gZY8/nm4rqiyv90VUSl9Gmw286um+Pr6UYoyYNGngH2Wz9+7t3t3cvXsrVw7M79pVu9zJk9MfTCstvp6e4X0eYxT/XUwAPT3p1exQYBWV8+2NAm/w9IYNA8saPUxCSufem+3yrP7JoNAYdVOmSAcdlF7NiGjuEWXPPCP96lcDjyird+9eT09roTd79pi+d4/wQkPV59sPO6y1MvbsSd2fjQKvetnGjWmIsMqyel9Mpf2/MLfaAhynX1Ix1tnp5PX06c3/ke3b19y9e2vXSkuWpPkXXqhfdqv37nXgmyThhY7o6mp9aLCKHTvKdXlWTz/6qHTffQPL6n1BldLV4M0GXvX7s2aN6S+rGI+qRz1YuLC5bXftau6ilnXrBub37KldblfX/mH24x+nrpU2IryQjZ6e1m4zqti3b6D7s5kW4Pr1A8vqPWSiYubM1q/87OvjgRPooO7udD6h2XMKEanVVjb0RmBoIMILE8akSQNDhTX7VKWK3btrd3/WWvbUU+l2h8qyes/UlVLLrdnAGzzN83Uxouz0LW3mTOmII0alCoQX0IQpU6QDD0yvVkTs3/1ZtgX4yCMD01u2NO7+7OkZ3r1/vb10f2JsI7yADrIHbj+aN6+1Miq3IZW97aHy87HHBqa3b2+8n1mzhtcCnD6d7k+MHMILyEz1VZWt9tjs2rV/92eZFuCGDdKDDw4sq3e+Xkrn7Fu56KX6ilGeu4taCC9gAurubv2pS9LAkGLN3Pje359uTaosa/TMXSm1UIdz719vL48+G68ILwBNqx5SrNmnL1Xs3fvS7s9GLcBNm9JtSpVlO3Y0rudQ3Z/NBCLP4R2bCC8Ao6LyxKPZs5t/2HzFzp3NP/ps/fo04kplWb2hxqR0kU6rtz1UfvLos/bjIwWQralTpYMPTq9WVG5XKnvRS2XZqlUD042exSuli1davfG98ugzuj/3R3gBmLCqb1eaP7+1Mvbubf7RZ5WRHyrLmhn5odUW4Hh79BnhBQDDMJIjP9QLwccfl5YvH3i/7MgPw3n02Vjq/hxDVQGAiamdIz808/zPysgPmzc3fkavtP/ID820AI85pv03vRNeAJC5kRj5oUw3aNmRH7Zta//jDQkvAEDbR36oDryRON9GeAEA2mK4Iz80g4svAQDZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkhvAAA2SG8AADZIbwAANkZdnjZPtD2L4vXk7bXV813lyzjn2y/ssE6/9X2+4db36Ksn9o+vh1lAQA6r2u4BUTEs5KOlyTbF0t6PiIuq17HtiU5IvbVKOODJfbzleHWFQAwPoxYt6HtV9heaftbklZImmf7CtuLba+w/ZmqdX9q+3jbXbY3277U9n22f2774GKdS2xfULX+pbbvsb3K9m8Vy2fY/pdiv9cX+yrVwrI9zfY/215ue4nttxbLX2v7F0VLcpnthbZ7bd9c1PF+22e2+/MDANQ20ue8XiXpixFxbESsl/TJiFgk6XWS3mH7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\n",
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "# PLOT LOSS AND ACCURACY\n",
+    "%matplotlib inline\n",
+    "\n",
+    "import matplotlib.image  as mpimg\n",
+    "import matplotlib.pyplot as plt\n",
+    "\n",
+    "#-----------------------------------------------------------\n",
+    "# Retrieve a list of list results on training and test data\n",
+    "# sets for each training epoch\n",
+    "#-----------------------------------------------------------\n",
+    "acc=history.history['acc']\n",
+    "val_acc=history.history['val_acc']\n",
+    "loss=history.history['loss']\n",
+    "val_loss=history.history['val_loss']\n",
+    "\n",
+    "epochs=range(len(acc)) # Get number of epochs\n",
+    "\n",
+    "#------------------------------------------------\n",
+    "# Plot training and validation accuracy per epoch\n",
+    "#------------------------------------------------\n",
+    "plt.plot(epochs, acc, 'r', \"Training Accuracy\")\n",
+    "plt.plot(epochs, val_acc, 'b', \"Validation Accuracy\")\n",
+    "plt.title('Training and validation accuracy')\n",
+    "plt.figure()\n",
+    "\n",
+    "#------------------------------------------------\n",
+    "# Plot training and validation loss per epoch\n",
+    "#------------------------------------------------\n",
+    "plt.plot(epochs, loss, 'r', \"Training Loss\")\n",
+    "plt.plot(epochs, val_loss, 'b', \"Validation Loss\")\n",
+    "\n",
+    "\n",
+    "plt.title('Training and validation loss')\n",
+    "\n",
+    "# Desired output. Charts with training and validation metrics. No crash :)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Submission Instructions"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Now click the 'Submit Assignment' button above."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# When you're done or would like to take a break, please run the two cells below to save your work and close the Notebook. This will free up resources for your fellow learners. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "%%javascript\n",
+    "<!-- Save the notebook -->\n",
+    "IPython.notebook.save_checkpoint();"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "%%javascript\n",
+    "IPython.notebook.session.delete();\n",
+    "window.onbeforeunload = null\n",
+    "setTimeout(function() { window.close(); }, 1000);"
+   ]
+  }
+ ],
+ "metadata": {
+  "accelerator": "GPU",
+  "colab": {
+   "collapsed_sections": [],
+   "name": "Exercise 5 - Question.ipynb",
+   "provenance": []
+  },
+  "coursera": {
+   "course_slug": "convolutional-neural-networks-tensorflow",
+   "graded_item_id": "laIUG",
+   "launcher_item_id": "jjQWM"
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.6.8"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 1
+}
